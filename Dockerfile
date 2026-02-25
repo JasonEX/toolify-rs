@@ -28,9 +28,16 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/app/target \
     set -eux; \
+    resolve_profdata_path() { \
+      case "$1" in \
+        /*) printf '%s\n' "$1" ;; \
+        *) printf '%s/%s\n' "$(pwd -P)" "$1" ;; \
+      esac; \
+    }; \
     build_release() { cargo build --locked --release; }; \
     build_with_pgo() { \
-      profdata_path="$1"; \
+      profdata_path="$(resolve_profdata_path "$1")"; \
+      test -f "${profdata_path}"; \
       RUSTFLAGS="-Cprofile-use=${profdata_path} -Cllvm-args=-pgo-warn-missing-function" cargo build --locked --release; \
     }; \
     case "${PGO_MODE}" in \
@@ -38,7 +45,6 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         build_release; \
         ;; \
       on) \
-        test -f "${PGO_PROFDATA}"; \
         build_with_pgo "${PGO_PROFDATA}"; \
         ;; \
       auto) \

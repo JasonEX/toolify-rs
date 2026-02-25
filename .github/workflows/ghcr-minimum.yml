@@ -90,4 +90,4 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             PGO_MODE=on
-            PGO_PROFDATA=artifacts/pgo/merged.profdata
+            PGO_PROFDATA=/app/artifacts/pgo/merged.profdata
