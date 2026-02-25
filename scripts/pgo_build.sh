@@ -58,7 +58,8 @@ case "$MODE" in
       # Only instrument toolify itself to keep merged profile focused on proxy hot paths.
       RUSTFLAGS="-Cprofile-generate=$PGO_DIR" cargo build --locked --release
       # Build benchmark mock upstream without instrumentation; it is workload generator, not PGO target.
-      cargo build --locked --release --manifest-path "$ROOT_DIR/tools/mock-openai-upstream/Cargo.toml" --target-dir "$ROOT_DIR/target"
+      # This crate lockfile is intentionally not tracked, so avoid --locked and resolve from local cache.
+      cargo build --offline --release --manifest-path "$ROOT_DIR/tools/mock-openai-upstream/Cargo.toml" --target-dir "$ROOT_DIR/target"
     )
     echo "[pgo] run your representative workload now, then execute:"
     echo "      scripts/pgo_build.sh profile   # optional one-command profile run"
