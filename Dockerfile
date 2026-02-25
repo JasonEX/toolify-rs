@@ -62,14 +62,16 @@ RUN --mount=type=cache,target=/usr/local/cargo/registry \
         echo "invalid PGO_MODE=${PGO_MODE}, expected auto|on|off"; \
         exit 2; \
         ;; \
-    esac
+    esac; \
+    test -x /app/target/release/toolify; \
+    install -m 755 /app/target/release/toolify /app/toolify
 
 # Runtime stage
 FROM debian:bookworm-slim
 RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
 RUN useradd -r -s /bin/false toolify
 WORKDIR /app
-COPY --from=builder /app/target/release/toolify /app/toolify
+COPY --from=builder /app/toolify /app/toolify
 COPY config.example.yaml /app/config.example.yaml
 COPY config.example.yaml /app/config.yaml
 USER toolify
