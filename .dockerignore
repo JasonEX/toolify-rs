@@ -8,7 +8,6 @@ openspec/
 .ace-tool/
 *.md
 tests/
-benches/
 scripts/
 config.yaml
 artifacts/*
