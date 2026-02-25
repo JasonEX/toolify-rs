@@ -1,0 +1,61 @@
+[package]
+name = "toolify-rs"
+version = "0.1.0"
+edition = "2021"
+description = "High-performance multi-provider LLM API proxy with function calling injection"
+
+[lib]
+name = "toolify_rs"
+
+[[bin]]
+name = "toolify"
+path = "src/main.rs"
+
+[dependencies]
+tokio = { version = "1", features = ["rt", "rt-multi-thread", "net", "io-util", "time", "macros"] }
+axum = { version = "0.8", default-features = false, features = ["http1", "json", "tokio"] }
+reqwest = { version = "0.12", features = ["stream", "rustls-tls"], default-features = false }
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["raw_value"] }
+serde_yaml = "0.9"
+quick-xml = "0.37"
+regex-lite = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+thiserror = "2"
+bytes = "1"
+uuid = { version = "1", default-features = false, features = ["std"] }
+fastrand = "2"
+futures-util = "0.3"
+http = "1"
+pin-project-lite = "0.2"
+parking_lot = "0.12"
+rustc-hash = "2"
+memchr = "2"
+smallvec = "1"
+url = "2"
+socket2 = { version = "0.5", features = ["all"] }
+hyper = { version = "1", features = ["server", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["server", "service", "tokio", "http1", "http2"] }
+hyper-rustls = { version = "0.27", features = ["http1", "http2", "webpki-roots", "ring"] }
+http-body-util = "0.1"
+rustls = { version = "0.23", features = ["ring"] }
+httpdate = "1"
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+
+[[bench]]
+name = "transcode"
+harness = false
+
+[[bench]]
+name = "hot_path"
+harness = false
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+opt-level = 3
+panic = "abort"

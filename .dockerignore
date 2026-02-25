@@ -1,0 +1,17 @@
+target/
+.git/
+.github/
+Toolify/
+toolify-rs/
+openspec/
+.claude/
+.ace-tool/
+*.md
+tests/
+benches/
+scripts/
+config.yaml
+artifacts/*
+!artifacts/pgo/
+artifacts/pgo/*
+!artifacts/pgo/merged.profdata

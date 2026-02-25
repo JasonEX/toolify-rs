@@ -1,0 +1,155 @@
+# toolify-rs Configuration Example File
+# Please copy this file as config.yaml and modify the configuration according to your actual needs
+
+# Server configuration
+server:
+  port: 8000                    # Server listening port
+  host: "0.0.0.0"              # Server listening address
+  timeout: 180                  # Request timeout (seconds)
+  http_pool_max_idle_per_host: 16  # Max idle upstream connections per host (single-worker mode auto-caps to 8~16 by upstream count)
+  http_pool_idle_timeout_secs: 15   # Idle connection timeout in seconds (0 to disable)
+  models_cache_ttl_secs: 300        # /v1/models cache refresh interval in seconds; 0 = static from config only
+  http_use_env_proxy: false         # Whether to honor HTTP(S)_PROXY/ALL_PROXY env vars for upstream calls
+  http_force_h2c_upstream: false    # Benchmark-only switch: force cleartext upstream to HTTP/2 prior-knowledge (h2c)
+  # tcp_reuse_port_listener_count: 4  # Enable SO_REUSEPORT and set listener shard count (Linux/Unix only)
+  # Runtime profile presets (pick one)
+  # latency profile (recommended for p99 / availability first):
+  # runtime_worker_threads: null
+  # runtime_max_blocking_threads: 8
+  # runtime_thread_stack_size_kb: null
+  # tiny profile (memory first, may reduce peak throughput):
+  # runtime_worker_threads: 1
+  # runtime_max_blocking_threads: 2
+  # runtime_thread_stack_size_kb: 512
+
+# Upstream OpenAI compatible service configuration
+upstream_services:
+  # Chat Completions channel
+  - name: "openai"
+    provider: "openai"
+    base_url: "https://api.openai.com/v1"
+    api_key: "your-openai-api-key-here"
+    # proxy: "http://127.0.0.1:7890"         # Optional default proxy for this upstream
+    # proxy_stream: "http://127.0.0.1:7891"  # Optional stream-only proxy override
+    # proxy_non_stream: "http://127.0.0.1:7892" # Optional non-stream proxy override
+    description: "OpenAI Official Service"
+    is_default: true
+    models:
+      - "gpt-3.5-turbo"
+      - "gpt-3.5-turbo-16k"
+      - "gpt-4"
+      - "gpt-4-turbo"
+      - "gpt-4o"
+      - "gpt-4o-mini"
+
+  # Coding-first channel (Responses API)
+  - name: "openai-coding"
+    provider: "openai-responses"
+    base_url: "https://api.openai.com/v1"
+    api_key: "your-openai-api-key-here"
+    # proxy: "http://127.0.0.1:7890"         # Optional default proxy
+    # proxy_stream: "http://127.0.0.1:7891"  # Optional stream-only proxy override
+    # proxy_non_stream: "http://127.0.0.1:7892" # Optional non-stream proxy override
+    description: "OpenAI Responses channel for coding workloads"
+    is_default: false
+    models:
+      - "gpt-5-codex"
+      - "gpt-5"
+      - "gpt-4.1"
+      - "gpt-4.1-mini"
+
+  - name: "google"
+    provider: "gemini-openai"
+    base_url: "https://generativelanguage.googleapis.com/v1beta/openai/"
+    api_key: "your-google-api-key-here"
+    # proxy: "http://127.0.0.1:7990"
+    # proxy_stream: "http://127.0.0.1:7991"
+    # proxy_non_stream: "http://127.0.0.1:7992"
+    description: "Google Gemini Service"
+    is_default: false
+    models:
+      # Use alias "gemini-2.5" to randomly select one of the following models
+      - "gemini-2.5:gemini-2.5-pro"
+      - "gemini-2.5:gemini-2.5-flash"
+      # You can also define models that can be used directly
+      - "gemini-2.5-pro"
+      - "gemini-2.5-flash"
+
+# Client authentication configuration
+client_authentication:
+  allowed_keys:
+    - "sk-my-secret-key-1"
+    - "sk-my-secret-key-2"
+
+# Feature configuration
+features:
+  enable_function_calling: true  # Enable function calling feature
+  log_level: "INFO"              # Logging level: DEBUG, INFO, WARNING, ERROR, CRITICAL, or DISABLED
+  convert_developer_to_system: true  # Whether to convert the developer role to the system role
+  
+  # Custom prompt template (optional). If not provided, the default prompt will be used.
+  # The default prompt includes comprehensive features:
+  # - Support for multiple tool calls in a single response
+  # - Context awareness to avoid duplicate tool calls
+  # - Strict parameter matching rules (preserving special characters like hyphens)
+  # - Clear format requirements with correct and incorrect examples
+  # - Tool result tracking via XML tags
+  #
+  # You can uncomment and customize the following template if needed:
+  # prompt_template: |
+  #   Your custom prompt template here...
+  #   Must include {tools_list} and {trigger_signal} placeholders
+
+  # Function calling error retry configuration
+  # When enabled, if the model outputs an invalid function call format,
+  # the system will send the error details back to the model and ask it to retry.
+  enable_fc_error_retry: false       # Enable automatic retry for function call parsing errors (default: false)
+  fc_error_retry_max_attempts: 3     # Maximum retry attempts (1-10, default: 3)
+  
+  # Custom error retry prompt template (optional). If not provided, the default prompt will be used.
+  # Must contain {error_details} and {original_response} placeholders.
+  # fc_error_retry_prompt_template: |
+  #   Your previous response attempted to make a function call but the format was invalid.
+  #   
+  #   **Your original response:**
+  #   {original_response}
+  #   
+  #   **Error details:**
+  #   {error_details}
+  #   
+  #   Please retry and output the function call in the correct XML format as instructed. DO NOT OUTPUT ANYTHING ELSE.
+
+# Configuration explanation:
+# 1. upstream_services: Configure multiple OpenAI compatible API services
+#    - name: Service name (for identification)
+#    - provider: openai | openai-responses | anthropic | gemini | gemini-openai
+#    - base_url: Base URL of the service
+#    - api_key: API key for the corresponding service
+#    - models: Complete list of models supported by the service
+#    - is_default: Whether it is the default service (used when the requested model is not in any service's model list)
+#    - description: Service description (optional)
+#    - proxy/proxy_stream/proxy_non_stream: Per-upstream proxy controls
+#      Selection order:
+#      - streaming request: proxy_stream -> proxy
+#      - non-streaming request: proxy_non_stream -> proxy
+#
+# 2. Routing matching rules:
+#    - The system will exactly match the corresponding service based on the model name in the request
+#    - If the model name is not in the models list of any service, the service with is_default set to true will be used
+#    - Multiple defaults are allowed; router order/hash decides the final upstream.
+#
+# 3. Client authentication:
+#    - allowed_keys: List of client API keys allowed to access this middleware
+#
+# 4. Logging levels:
+#    - DEBUG: Show all debug information (most verbose)
+#    - INFO: Show general information, warnings and errors
+#    - WARNING: Show only warnings and errors
+#    - ERROR: Show only errors
+#    - CRITICAL: Show only critical errors
+#    - DISABLED: Disable all logging
+#
+# 5. Security reminders:
+#    - Please keep API keys safe and do not commit configuration files containing real keys to version control systems
+#    - It is recommended to use different configuration files for different environments
+#    - Environment variables can be used to manage sensitive information

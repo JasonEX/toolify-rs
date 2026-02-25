@@ -1,0 +1,55 @@
+name: nightly-perf
+
+on:
+  schedule:
+    - cron: "0 2 * * *"
+  workflow_dispatch:
+
+jobs:
+  perf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Lint
+        run: cargo clippy --all-targets --all-features -- -W clippy::pedantic
+
+      - name: Test
+        run: cargo test --all --quiet
+
+      - name: Install wrk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wrk
+
+      - name: Build release binaries
+        run: |
+          cargo build --release
+          cargo build --release --manifest-path tools/mock-openai-upstream/Cargo.toml --target-dir target
+
+      - name: Dual perf gate (pinned block + unpinned observe)
+        run: |
+          PINNED_ROUNDS=9 PINNED_DURATION=10s \
+          UNPINNED_ROUNDS=5 UNPINNED_DURATION=10s \
+          scripts/perf_dual_gate.sh
+
+      - name: Upload perf gate summary
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: nightly-perf-summary
+          path: |
+            artifacts/perf/zero_regression_gate_latest.md
+            artifacts/perf/zero_regression_gate_*.md
+            artifacts/perf/zero_regression_gate_pinned_latest.md
+            artifacts/perf/zero_regression_gate_unpinned_latest.md
+            artifacts/perf/zero_regression_dual_gate_latest.md

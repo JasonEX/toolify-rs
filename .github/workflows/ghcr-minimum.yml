@@ -1,0 +1,93 @@
+name: ghcr-minimum
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    tags:
+      - "v*"
+
+concurrency:
+  group: ghcr-minimum-publish
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  build-and-push-minimum:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, llvm-tools-preview
+
+      - name: Cache Cargo
+        uses: Swatinem/rust-cache@v2
+
+      - name: Lint
+        run: cargo clippy --all-targets --all-features -- -W clippy::pedantic
+
+      - name: Test
+        run: cargo test -q
+
+      - name: Install wrk
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wrk
+
+      - name: Generate PGO profile
+        run: |
+          set -euo pipefail
+          rm -f artifacts/pgo/*.profraw artifacts/pgo/merged.profdata
+          scripts/pgo_build.sh gen
+          PROFILE_SCENARIOS="text code full" PROFILE_ROUNDS=2 PROFILE_DURATION=8s scripts/pgo_build.sh profile
+          scripts/pgo_build.sh merge
+          test -s artifacts/pgo/merged.profdata
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=toolify-rs
+            type=raw,value=toolify-rs-latest,enable={{is_default_branch}}
+            type=sha,prefix=toolify-rs-
+            type=ref,event=tag,prefix=toolify-rs-
+
+      - name: Build and push minimum image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: Dockerfile
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            PGO_MODE=on
+            PGO_PROFDATA=artifacts/pgo/merged.profdata

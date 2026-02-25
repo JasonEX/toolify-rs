@@ -1,0 +1,30 @@
+# Build artifacts
+/target/
+/tools/**/target/
+
+# Local tool state
+/.ace-tool/
+/.claude/
+/openspec/
+
+# Local runtime config
+/config.yaml
+.env
+.env.*
+
+# Editor/IDE
+.vscode/
+.idea/
+
+# Local temp/debug files
+*.log
+*.tmp
+*.swp
+
+# Benchmark/perf artifacts
+/perf*.data*
+/perf*.old
+/artifacts/
+
+# Dev tool crate lockfiles
+/tools/**/Cargo.lock
